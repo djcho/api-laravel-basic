@@ -21,15 +21,18 @@ Route::controller(AuthController::class)->group(function(){
         Route::post('/register', 'register')->name('auth.register');
         Route::post('/login', 'login')->name('auth.login');
         Route::middleware('auth:sanctum')->get('/me', 'me')->name('auth.me');
+        Route::middleware('auth:sanctum')->post('/logout', 'logout')->name('auth.logout');
     });
 });
 
-Route::controller(ArticleController::class)->group(function(){
-    Route::prefix('articles')->group(function () {
-        Route::get('/', 'index')->name('articles.index');
-        Route::get('/{article}', 'show')->name('articles.show');
-        Route::middleware('auth:sanctum')->post('/', 'store')->name('articles.store');
-        Route::middleware('auth:sanctum')->put('/{article}', 'update')->name('articles.update'); // 이름 수정
-        Route::middleware('auth:sanctum')->delete('/{article}', 'destroy')->name('articles.destroy');
-    });
-});
+// Route::controller(ArticleController::class)->group(function(){
+//     Route::prefix('articles')->group(function () {
+//         Route::get('/', 'index')->name('articles.index');
+//         Route::get('/{articleId}', 'show')->name('articles.show');
+//         Route::middleware('auth:sanctum')->post('/', 'store')->name('articles.store');
+//         Route::middleware('auth:sanctum')->put('/{articleId}', 'update')->name('articles.update'); // 이름 수정
+//         Route::middleware('auth:sanctum')->delete('/{articleId}', 'destroy')->name('articles.destroy');
+//     });
+// });
+
+Route::resource('articles', ArticleController::class)->middleware('auth:sanctum')->except(['create', 'edit']);

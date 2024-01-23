@@ -1,0 +1,525 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Laravel Learning Project",
+        "description": "API Documentation",
+        "version": "0.1"
+    },
+    "paths": {
+        "/api/articles": {
+            "get": {
+                "tags": [
+                    "게시글"
+                ],
+                "summary": "모든 게시글을 조회",
+                "operationId": "11aa4cc6561a7b94c56d1201d62513ee",
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully retrieved articles"
+                                        },
+                                        "article": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "게시글"
+                ],
+                "summary": "새 게시글 추가",
+                "operationId": "e328bed23caf889ad982ad3f1180bccb",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "content"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Article title"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "example": "Article content"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully created article"
+                                        },
+                                        "article": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/articles/{articleId}": {
+            "get": {
+                "tags": [
+                    "게시글"
+                ],
+                "summary": "단일 게시글 조회",
+                "operationId": "5d8427bb2a60a380a8e1d561bbb38165",
+                "parameters": [
+                    {
+                        "name": "articleId",
+                        "in": "path",
+                        "description": "게시글 ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully retrieved article"
+                                        },
+                                        "article": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Article not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "게시글"
+                ],
+                "summary": "게시글 수정",
+                "operationId": "0bd412034457db73449716837fa61519",
+                "parameters": [
+                    {
+                        "name": "articleId",
+                        "in": "path",
+                        "description": "게시글 ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "content"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Article title"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "example": "Article content"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully updated article"
+                                        },
+                                        "article": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "This action is unauthorized."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Article not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "게시글"
+                ],
+                "summary": "게시글 삭제",
+                "operationId": "e99e2dc466b1f035bb4cd3a7e1e8a880",
+                "parameters": [
+                    {
+                        "name": "articleId",
+                        "in": "path",
+                        "description": "게시글 ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully deleted article"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "This action is unauthorized."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Article not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "tags": [
+                    "인증"
+                ],
+                "summary": "새 사용자 추가",
+                "operationId": "d764dd091cc4494ae0baf360b03319f3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "djcho"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "djcho@jiran.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "1234"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Succeed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully created user!"
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "your_access_token"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "인증"
+                ],
+                "summary": "사용자 인증",
+                "operationId": "8dcb70df1020986038d098cc08d05dae",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "djcho@jiran.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "secret123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "로그인 성공 시",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "api_access_token"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "tags": [
+                    "인증"
+                ],
+                "summary": "현재 사용자 정보 조회",
+                "operationId": "b9abb1a7a74670a19c215c2c133f14d8",
+                "responses": {
+                    "200": {
+                        "description": "로그인 성공 시",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "인증"
+                ],
+                "summary": "사용자 로그아웃",
+                "operationId": "69281b12abb272c76871f19cb17ca563",
+                "responses": {
+                    "200": {
+                        "description": "로그아웃 성공 시",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Successfully logged out"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "apiKey",
+                "description": "Enter token in format (Bearer <token>)",
+                "name": "Authorization",
+                "in": "header"
+            }
+        }
+    }
+}
