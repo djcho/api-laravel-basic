@@ -113,10 +113,8 @@ class AuthController extends Controller
         $refreshToken = $user->createToken('refresh_token', [TokenAbility::ISSUE_ACCESS_TOKEN->value], Carbon::now()->addMinutes(config('sanctum.rt_expiration')));
 
         $response = new JsonResponse([
-            'message' => 'Successfully created user!',
             'access_token'=> $accessToken->plainTextToken,
             'token_type' => 'Bearer',
-            'user' => $user
         ], 200);
 
         // Set the refresh token as an HttpOnly secure cookie
