@@ -419,6 +419,10 @@
                                             "type": "string",
                                             "example": "api_access_token"
                                         },
+                                        "refresh_token": {
+                                            "type": "string",
+                                            "example": "refresh_token"
+                                        },
                                         "token_type": {
                                             "type": "string",
                                             "example": "Bearer"
@@ -430,6 +434,37 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/auth/refresh-token": {
+            "get": {
+                "tags": [
+                    "인증"
+                ],
+                "summary": "액세스 토큰 갱신",
+                "operationId": "65fc7710fcc78c6b6147bd27e50494c6",
+                "responses": {
+                    "200": {
+                        "description": "Access token refreshed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
             }
         },
         "/api/auth/me": {

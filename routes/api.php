@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ArticleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Enums\TokenAbility;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,8 +21,9 @@ Route::controller(AuthController::class)->group(function(){
     Route::prefix('auth')->group(function () {
         Route::post('/register', 'register')->name('auth.register');
         Route::post('/login', 'login')->name('auth.login');
-        Route::middleware('auth:sanctum')->get('/me', 'me')->name('auth.me');
-        Route::middleware('auth:sanctum')->post('/logout', 'logout')->name('auth.logout');
+        Route::middleware(['auth:sanctum', 'ability:'.TokenAbility::ACCESS_API->value])->get('/me', 'me')->name('auth.me');
+        Route::middleware(['auth:sanctum', 'ability:'.TokenAbility::ACCESS_API->value])->post('/logout', 'logout')->name('auth.logout');
+        Route::middleware(['auth:sanctum', 'ability:'.TokenAbility::ACCESS_API->value])->post('/refresh-token', 'refreshToken')->name('auth.refreshToken');
     });
 });
 
@@ -35,4 +37,4 @@ Route::controller(AuthController::class)->group(function(){
 //     });
 // });
 
-Route::resource('articles', ArticleController::class)->middleware('auth:sanctum')->except(['create', 'edit']);
+Route::resource('articles', ArticleController::class)->middleware(['auth:sanctum', 'ability:'.TokenAbility::ACCESS_API->value])->except(['create', 'edit']);
