@@ -437,12 +437,12 @@
             }
         },
         "/api/auth/refresh-token": {
-            "get": {
+            "post": {
                 "tags": [
                     "인증"
                 ],
                 "summary": "액세스 토큰 갱신",
-                "operationId": "65fc7710fcc78c6b6147bd27e50494c6",
+                "operationId": "d293d02cfa895a696bb2f9180bf517b1",
                 "responses": {
                     "200": {
                         "description": "Access token refreshed successfully",

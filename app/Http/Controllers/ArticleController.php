@@ -79,7 +79,7 @@ class ArticleController extends Controller
     public function show($articleId){
         $article = Article::findOrFail($articleId);
         return response()->json([
-            'message' => 'Successfully created article!',
+            'message' => 'Successfully get article!',
             'article' => $article
         ], 200);
     }

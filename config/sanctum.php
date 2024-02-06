@@ -47,7 +47,7 @@ return [
     */
 
     'expiration' => null,
-    'ac_expiration' => 60, //한 시간
+    'ac_expiration' => 60 * 12, //12 시간
     'rt_expiration' => 7 * 24 * 60, //7일
 
     /*

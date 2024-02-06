@@ -41,35 +41,16 @@ class AuthController extends Controller
         //자동으로 검증하는 방법
         $validatedData = $request->validated();
 
-
         $user = User::create([
             'name'=> $validatedData['name'],
             'email'=> $validatedData['email'],
             'password'=> bcrypt($validatedData['password']),
         ]);
 
-        $accessToken = $user->createToken('access_token', [TokenAbility::ACCESS_API->value], Carbon::now()->addMinutes(config('sanctum.ac_expiration')));
-        $refreshToken = $user->createToken('refresh_token', [TokenAbility::ISSUE_ACCESS_TOKEN->value], Carbon::now()->addMinutes(config('sanctum.rt_expiration')));
-
-        $response = new JsonResponse([
+        return response()->json([
             'message' => 'Successfully created user!',
-            'access_token'=> $accessToken->plainTextToken,
-            'token_type' => 'Bearer',
             'user' => $user
         ], 200);
-
-        // Set the refresh token as an HttpOnly secure cookie
-        $response->cookie(
-            'refresh_token',
-            $refreshToken->plainTextToken,
-            config('sanctum.rt_expiration'), // expiry time in minutes
-            null,
-            null,
-            true, // secure
-            true // httpOnly
-        );
-
-        return $response;
     }
 
     /**
@@ -115,6 +96,7 @@ class AuthController extends Controller
         $response = new JsonResponse([
             'access_token'=> $accessToken->plainTextToken,
             'token_type' => 'Bearer',
+            'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
         ], 200);
 
         // Set the refresh token as an HttpOnly secure cookie
@@ -132,7 +114,7 @@ class AuthController extends Controller
     }
 
     /**
-     * @OA\Get(
+     * @OA\Post(
      *     path="/api/auth/refresh-token", summary="액세스 토큰 갱신", tags={"인증"},
      *     security={{ "sanctum": {} }},
      *     @OA\Response(
@@ -146,7 +128,6 @@ class AuthController extends Controller
      */
     public function refreshToken(Request $request){
         $inputRefreshToken = $request->cookie('refresh_token');
-
         if (!$inputRefreshToken) {
             return new JsonResponse([
                 'input' => $inputRefreshToken,
@@ -163,14 +144,15 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $refreshToken = $request->user()->tokens()->where('name', 'access_token')->first();
-        if ($refreshToken) {
-            $refreshToken->delete();
+        $accessToken = $request->user()->tokens()->where('name', 'access_token')->first();
+        if ($accessToken) {
+            $accessToken->delete();
         }
 
         $accessToken = $request->user()->createToken('access_token', [TokenAbility::ACCESS_API->value], Carbon::now()->addMinutes(config('sanctum.ac_expiration')));
         return new JsonResponse([
             'access_token' => $accessToken->plainTextToken,
+            'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
             'token_type' => 'Bearer',
         ], 200);
     }
