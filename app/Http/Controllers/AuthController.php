@@ -37,7 +37,8 @@ class AuthController extends Controller
      * )
      */
 
-    public function register(RegisterUserRequest $request){
+    public function register(RegisterUserRequest $request)
+    {
         //자동으로 검증하는 방법
         $validatedData = $request->validated();
 
@@ -47,10 +48,10 @@ class AuthController extends Controller
             'password'=> bcrypt($validatedData['password']),
         ]);
 
-        return response()->json([
+        return $this->successResponse([
             'message' => 'Successfully created user!',
             'user' => $user
-        ], 200);
+        ]);
     }
 
     /**
@@ -70,45 +71,31 @@ class AuthController extends Controller
      *     ),
      * )
      */
-    public function login(LoginUserRequest $request){
-
+    public function login(LoginUserRequest $request)
+    {
         $request->validated();
 
         if(!Auth::attempt($request->only('email','password'))){
-            return response()->json([
-                'message' => 'Invalid login details'], 401);
-        }
-
-        $refreshToken = $request->user()->tokens()->where('name', 'refresh_token')->first();
-        if ($refreshToken) {
-            $refreshToken->delete();
-        }
-        $refreshToken = $request->user()->tokens()->where('name', 'access_token')->first();
-        if ($refreshToken) {
-            $refreshToken->delete();
+            return $this->errorResponse('Invalid login details', 401);
         }
 
         $user = User::where('email', $request->email)->first();
 
-        $accessToken = $user->createToken('access_token', [TokenAbility::ACCESS_API->value], Carbon::now()->addMinutes(config('sanctum.ac_expiration')));
-        $refreshToken = $user->createToken('refresh_token', [TokenAbility::ISSUE_ACCESS_TOKEN->value], Carbon::now()->addMinutes(config('sanctum.rt_expiration')));
+        // 기존 토큰 삭제
+        $this->revokeTokens($user);
 
-        $response = new JsonResponse([
+        // 새 토큰 생성
+        $accessToken = $this->createAccessToken($user);
+        $refreshToken = $this->createRefreshToken($user);
+
+        $response = $this->successResponse([
             'access_token'=> $accessToken->plainTextToken,
             'token_type' => 'Bearer',
             'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
-        ], 200);
+        ]);
 
         // Set the refresh token as an HttpOnly secure cookie
-        $response->cookie(
-            'refresh_token',
-            $refreshToken->plainTextToken,
-            config('sanctum.rt_expiration'), // expiry time in minutes
-            null,
-            null,
-            true, // secure
-            true // HttpOnly
-        );
+        $this->setRefreshTokenCookie($response, $refreshToken->plainTextToken);
 
         return $response;
     }
@@ -126,35 +113,35 @@ class AuthController extends Controller
      *     ),
      * )
      */
-    public function refreshToken(Request $request){
+    public function refreshToken(Request $request)
+    {
         $inputRefreshToken = $request->cookie('refresh_token');
         if (!$inputRefreshToken) {
-            return new JsonResponse([
-                'input' => $inputRefreshToken,
-                'message' => 'Invalid refresh token',
-            ], 401);
+            return $this->errorResponse('Refresh token missing', 401);
         }
 
-        //토큰 검증
-        $refreshToken = $request->user()->tokens()->where('name', 'refresh_token')->first();
-        if ($inputRefreshToken === $refreshToken) {
-            return new JsonResponse([
-                'input' => $inputRefreshToken,
-                'message' => 'Invalid refresh token',
-            ], 401);
+        // 사용자의 refresh_token 존재 확인
+        $user = $request->user();
+        $refreshTokenExists = $user->tokens()
+            ->where('name', 'refresh_token')
+            ->where('abilities', 'like', '%' . TokenAbility::ISSUE_ACCESS_TOKEN->value . '%')
+            ->exists();
+
+        if (!$refreshTokenExists) {
+            return $this->errorResponse('Invalid refresh token', 401);
         }
 
-        $accessToken = $request->user()->tokens()->where('name', 'access_token')->first();
-        if ($accessToken) {
-            $accessToken->delete();
-        }
+        // 기존 access token 삭제
+        $user->tokens()->where('name', 'access_token')->delete();
 
-        $accessToken = $request->user()->createToken('access_token', [TokenAbility::ACCESS_API->value], Carbon::now()->addMinutes(config('sanctum.ac_expiration')));
-        return new JsonResponse([
+        // 새 access token 생성
+        $accessToken = $this->createAccessToken($user);
+
+        return $this->successResponse([
             'access_token' => $accessToken->plainTextToken,
             'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
             'token_type' => 'Bearer',
-        ], 200);
+        ]);
     }
 
     /**
@@ -166,8 +153,9 @@ class AuthController extends Controller
      *     ),
      * )
      */
-    public function me(Request $request){
-        return $request->user();
+    public function me(Request $request)
+    {
+        return $this->successResponse($request->user());
     }
 
     /**
@@ -186,18 +174,98 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // 현재 사용자의 토큰을 폐기
-        $refreshToken = $request->user()->tokens()->where('name', 'refresh_token')->first();
-        if ($refreshToken) {
-            $refreshToken->delete();
-        }
-        $refreshToken = $request->user()->tokens()->where('name', 'access_token')->first();
-        if ($refreshToken) {
-            $refreshToken->delete();
-        }
+        $this->revokeTokens($request->user());
 
-        return response()->json([
+        return $this->successResponse([
             'message' => 'Successfully logged out',
-        ], 200);
+        ]);
+    }
+
+    /**
+     * 사용자의 모든 인증 토큰을 삭제합니다.
+     *
+     * @param User $user
+     * @return void
+     */
+    private function revokeTokens(User $user): void
+    {
+        $user->tokens()->where('name', 'refresh_token')->delete();
+        $user->tokens()->where('name', 'access_token')->delete();
+    }
+
+    /**
+     * 액세스 토큰을 생성합니다.
+     *
+     * @param User $user
+     * @return \Laravel\Sanctum\NewAccessToken
+     */
+    private function createAccessToken(User $user)
+    {
+        return $user->createToken(
+            'access_token',
+            [TokenAbility::ACCESS_API->value],
+            Carbon::now()->addMinutes(config('sanctum.ac_expiration'))
+        );
+    }
+
+    /**
+     * 리프레시 토큰을 생성합니다.
+     *
+     * @param User $user
+     * @return \Laravel\Sanctum\NewAccessToken
+     */
+    private function createRefreshToken(User $user)
+    {
+        return $user->createToken(
+            'refresh_token',
+            [TokenAbility::ISSUE_ACCESS_TOKEN->value],
+            Carbon::now()->addMinutes(config('sanctum.rt_expiration'))
+        );
+    }
+
+    /**
+     * 리프레시 토큰을 쿠키에 설정합니다.
+     *
+     * @param JsonResponse $response
+     * @param string $refreshToken
+     * @return void
+     */
+    private function setRefreshTokenCookie(JsonResponse $response, string $refreshToken): void
+    {
+        $response->cookie(
+            'refresh_token',
+            $refreshToken,
+            config('sanctum.rt_expiration'),
+            null,
+            null,
+            true,
+            true
+        );
+    }
+
+    /**
+     * 성공 응답을 반환합니다.
+     *
+     * @param mixed $data
+     * @param int $status
+     * @return JsonResponse
+     */
+    private function successResponse($data, int $status = 200): JsonResponse
+    {
+        return new JsonResponse($data, $status);
+    }
+
+    /**
+     * 오류 응답을 반환합니다.
+     *
+     * @param string $message
+     * @param int $status
+     * @return JsonResponse
+     */
+    private function errorResponse(string $message, int $status): JsonResponse
+    {
+        return new JsonResponse([
+            'message' => $message
+        ], $status);
     }
 }
