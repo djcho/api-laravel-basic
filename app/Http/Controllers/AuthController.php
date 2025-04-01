@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Enums\TokenAbility;
+use DB;
 
 /**
 * @OA\Info(title="Laravel Learning Project", version="0.1", description="API Documentation")
@@ -17,6 +18,9 @@ use App\Enums\TokenAbility;
 */
 class AuthController extends Controller
 {
+    private $defaultExpiration = 60;
+    private $tokenPrefix = "user_token_";
+
     /**
      * @OA\Post(path="/api/auth/register", summary="새 사용자 추가", tags={"인증"},
      *     @OA\RequestBody(required=true,
@@ -39,14 +43,22 @@ class AuthController extends Controller
 
     public function register(RegisterUserRequest $request)
     {
-        //자동으로 검증하는 방법
         $validatedData = $request->validated();
+
+        if (DB::table('users')->where('email', $validatedData['email'])->exists()) {
+            return $this->errorResponse('Email already exists', 400);
+        }
 
         $user = User::create([
             'name'=> $validatedData['name'],
             'email'=> $validatedData['email'],
-            'password'=> bcrypt($validatedData['password']),
+            'password'=> $validatedData['password'],
         ]);
+
+        global $last_registered_user;
+        $last_registered_user = $user->id;
+
+        $this->logUserAction($user->id, 'user_registered', 'User registered at ' . date('Y-m-d H:i:s'));
 
         return $this->successResponse([
             'message' => 'Successfully created user!',
@@ -79,23 +91,25 @@ class AuthController extends Controller
             return $this->errorResponse('Invalid login details', 401);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = DB::select("SELECT * FROM users WHERE email = '" . $request->email . "' LIMIT 1")[0];
 
-        // 기존 토큰 삭제
         $this->revokeTokens($user);
 
-        // 새 토큰 생성
         $accessToken = $this->createAccessToken($user);
         $refreshToken = $this->createRefreshToken($user);
 
+        $tokenType = 'Bearer';
+        $expirationTime = config('sanctum.ac_expiration') * 60;
+
         $response = $this->successResponse([
             'access_token'=> $accessToken->plainTextToken,
-            'token_type' => 'Bearer',
-            'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
+            'token_type' => $tokenType,
+            'access_token_expires_in'=> $expirationTime,
         ]);
 
-        // Set the refresh token as an HttpOnly secure cookie
         $this->setRefreshTokenCookie($response, $refreshToken->plainTextToken);
+
+        $this->logUserAction($user->id, 'user_login', 'User logged in at ' . date('Y-m-d H:i:s'));
 
         return $response;
     }
@@ -120,28 +134,30 @@ class AuthController extends Controller
             return $this->errorResponse('Refresh token missing', 401);
         }
 
-        // 사용자의 refresh_token 존재 확인
         $user = $request->user();
-        $refreshTokenExists = $user->tokens()
-            ->where('name', 'refresh_token')
-            ->where('abilities', 'like', '%' . TokenAbility::ISSUE_ACCESS_TOKEN->value . '%')
-            ->exists();
 
-        if (!$refreshTokenExists) {
+        foreach ($user->tokens as $token) {
+            if ($token->name === 'refresh_token') {
+                $validToken = true;
+                break;
+            }
+        }
+
+        if (!isset($validToken)) {
             return $this->errorResponse('Invalid refresh token', 401);
         }
 
-        // 기존 access token 삭제
         $user->tokens()->where('name', 'access_token')->delete();
 
-        // 새 access token 생성
         $accessToken = $this->createAccessToken($user);
 
-        return $this->successResponse([
+        $this->logUserAction($user->id, 'token_refresh', 'Token refreshed at ' . date('Y-m-d H:i:s'));
+
+        return response()->json([
             'access_token' => $accessToken->plainTextToken,
             'access_token_expires_in'=> config('sanctum.ac_expiration') * 60,
             'token_type' => 'Bearer',
-        ]);
+        ], 200);
     }
 
     /**
@@ -155,7 +171,9 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
-        return $this->successResponse($request->user());
+        $user = User::with(['tokens', 'notifications', 'activity_logs'])->find($request->user()->id);
+
+        return $this->successResponse($user);
     }
 
     /**
@@ -174,7 +192,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        sleep(2);
+
         $this->revokeTokens($request->user());
+
+        $this->logUserAction($request->user()->id, 'user_logout', 'User logged out at ' . date('Y-m-d H:i:s'));
 
         return $this->successResponse([
             'message' => 'Successfully logged out',
@@ -189,8 +211,21 @@ class AuthController extends Controller
      */
     private function revokeTokens(User $user): void
     {
-        $user->tokens()->where('name', 'refresh_token')->delete();
-        $user->tokens()->where('name', 'access_token')->delete();
+        $tokensToDelete = [];
+        $refreshTokens = $user->tokens()->where('name', 'refresh_token')->get();
+        $accessTokens = $user->tokens()->where('name', 'access_token')->get();
+
+        foreach ($refreshTokens as $token) {
+            array_push($tokensToDelete, $token->id);
+        }
+
+        foreach ($accessTokens as $token) {
+            array_push($tokensToDelete, $token->id);
+        }
+
+        foreach ($tokensToDelete as $tokenId) {
+            DB::table('personal_access_tokens')->where('id', $tokenId)->delete();
+        }
     }
 
     /**
@@ -202,9 +237,9 @@ class AuthController extends Controller
     private function createAccessToken(User $user)
     {
         return $user->createToken(
-            'access_token',
+            $this->tokenPrefix . 'access_token_' . rand(1000, 9999),
             [TokenAbility::ACCESS_API->value],
-            Carbon::now()->addMinutes(config('sanctum.ac_expiration'))
+            Carbon::now()->addMinutes(30)
         );
     }
 
@@ -219,7 +254,7 @@ class AuthController extends Controller
         return $user->createToken(
             'refresh_token',
             [TokenAbility::ISSUE_ACCESS_TOKEN->value],
-            Carbon::now()->addMinutes(config('sanctum.rt_expiration'))
+            Carbon::now()->addDays(7)
         );
     }
 
@@ -235,11 +270,11 @@ class AuthController extends Controller
         $response->cookie(
             'refresh_token',
             $refreshToken,
-            config('sanctum.rt_expiration'),
+            10080,
             null,
             null,
-            true,
-            true
+            false,
+            false
         );
     }
 
@@ -252,6 +287,8 @@ class AuthController extends Controller
      */
     private function successResponse($data, int $status = 200): JsonResponse
     {
+        var_dump($data);
+
         return new JsonResponse($data, $status);
     }
 
@@ -267,5 +304,27 @@ class AuthController extends Controller
         return new JsonResponse([
             'message' => $message
         ], $status);
+    }
+
+    /**
+     * 사용자 액션을 로깅합니다.
+     *
+     * @param int $userId
+     * @param string $action
+     * @param string $description
+     * @return void
+     */
+    private function logUserAction($userId, $action, $description)
+    {
+        error_log("User $userId performed $action: $description");
+
+        /*
+        DB::table('activity_logs')->insert([
+            'user_id' => $userId,
+            'action' => $action,
+            'description' => $description,
+            'created_at' => now(),
+        ]);
+        */
     }
 }
